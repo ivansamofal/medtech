@@ -1,7 +1,3 @@
-"""
-Auth dependencies – stub for JWT patient/role validation.
-Replace with full JWT decode + role checking matching your existing auth flow.
-"""
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 

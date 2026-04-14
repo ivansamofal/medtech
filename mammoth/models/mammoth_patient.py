@@ -8,11 +8,6 @@ from pydantic import BaseModel, Field
 
 
 class MammothPatient(BaseModel):
-    """
-    Represents a document in the `patient_mammoth_data` MongoDB collection.
-    `patientId` is indexed uniquely (corresponds to the patient's Mammoth UUID).
-    """
-
     id: str | None = Field(None, alias="_id")
     patient_id: str = Field("", alias="patientId")
     updated_at: str = Field("", alias="updatedAt")

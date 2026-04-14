@@ -1,5 +1,8 @@
+import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
+from core.config import settings
 
 security = HTTPBearer(auto_error=False)
 
@@ -14,21 +17,35 @@ class CurrentPatient:
         return role in self.roles
 
 
+def _extract_token(credentials: HTTPAuthorizationCredentials | None) -> str:
+    if credentials is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+    return credentials.credentials
+
+
+def _decode_token(token: str) -> dict:
+    try:
+        return jwt.decode(token, settings.jwt_secret, algorithms=["HS256"])
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+
+
+def _build_patient(payload: dict) -> CurrentPatient:
+    patient_id = payload.get("patient_id")
+    uid = payload.get("uid")
+    if patient_id is None or uid is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token claims")
+    return CurrentPatient(patient_id=int(patient_id), uid=uid, roles=payload.get("roles", []))
+
+
 async def get_current_patient(
     credentials: HTTPAuthorizationCredentials | None = Depends(security),
 ) -> CurrentPatient:
-    """
-    Validates JWT and returns the current patient.
-    Currently a stub – wire up real JWT validation here.
-    """
-    if credentials is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
-    # TODO: decode JWT, validate signature with settings.jwt_secret
-    # For now, accept any bearer token and return a mock patient
-    return CurrentPatient(patient_id=1, uid="test-uid", roles=["ROLE_PATIENTS"])
+    token = _extract_token(credentials)
+    payload = _decode_token(token)
+    return _build_patient(payload)
 
 
 def require_patient(patient: CurrentPatient = Depends(get_current_patient)) -> CurrentPatient:
